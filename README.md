@@ -1,141 +1,135 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Aplikasi Kas Anggota</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta charset="UTF-8">
+<title>Aplikasi Kas</title>
+<style>
+body { font-family: Arial; background:#f4f4f4; }
+.container { width:90%; max-width:900px; margin:auto; background:#fff; padding:15px; margin-top:30px; border-radius:5px; }
+h2 { text-align:center; }
+input, select, button { padding:6px; margin:5px 0; width:100%; }
+table { width:100%; border-collapse:collapse; margin-top:10px; }
+table, th, td { border:1px solid #ccc; }
+th, td { padding:6px; text-align:center; }
+.hidden { display:none; }
+.logout { background:red; color:white; border:none; }
+</style>
 </head>
-<body class="bg-light">
-  <div class="container py-5">
-    <div class="card shadow rounded-4 p-4">
-      <h2 class="mb-4 text-center">Aplikasi Kas Anggota</h2>
+<body>
 
-      <!-- Form Input -->
-      <form id="kasForm" class="mb-4">
-        <div class="mb-3">
-          <label for="nama" class="form-label">Nama Anggota</label>
-          <input type="text" class="form-control" id="nama" required />
-        </div>
-        <div class="mb-3">
-          <label for="jumlah" class="form-label">Jumlah Simpanan (Rp)</label>
-          <input type="number" class="form-control" id="jumlah" required />
-        </div>
-        <div class="mb-3">
-          <label for="bukti" class="form-label">Link Bukti (opsional)</label>
-          <input type="url" class="form-control" id="bukti" placeholder="https://drive.google.com/..." />
-        </div>
-        <button type="submit" class="btn btn-primary w-100">Simpan</button>
-      </form>
+<!-- LOGIN -->
+<div class="container" id="loginPage">
+<h2>Login Kas</h2>
+<input type="text" id="username" placeholder="Username">
+<input type="password" id="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<p id="loginMsg" style="color:red;"></p>
+</div>
 
-      <!-- Riwayat -->
-      <h4 class="mb-3">Riwayat Simpanan</h4>
-      <ul id="riwayat" class="list-group"></ul>
-    </div>
-  </div>
+<!-- APLIKASI KAS -->
+<div class="container hidden" id="appPage">
+<h2>Aplikasi Kas</h2>
 
-  <script>
-    const scriptURL = "PASTE_URL_WEB_APP_MU_DISINI"; // Ganti dengan URL Web App Google Apps Script
+<button class="logout" onclick="logout()">Logout</button>
 
-    // Kirim data ke Spreadsheet
-    document.getElementById("kasForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      const nama = document.getElementById("nama").value;
-      const jumlah = document.getElementById("jumlah").value;
-      const bukti = document.getElementById("bukti").value;
+<h3>Input Kas</h3>
+<input type="text" id="nama" placeholder="Nama">
+<input type="month" id="bulan">
+<select id="jenis">
+<option value="masuk">Pemasukan</option>
+<option value="keluar">Pengeluaran</option>
+</select>
+<input type="text" id="ket" placeholder="Keterangan">
+<input type="number" id="nominal" placeholder="Nominal">
+<button onclick="tambahKas()">Simpan</button>
 
-      fetch(scriptURL, {
-        method: 'POST',
-        body: new URLSearchParams({ nama, jumlah, bukti })
-      })
-        .then(() => {
-  alert("✅ Data berhasil disimpan!");
-  const dataBaru = {
-    nama,
-    jumlah,
-    bukti,
-    tanggal: new Date().toLocaleDateString()
+<h3>Data Kas</h3>
+<table>
+<thead>
+<tr>
+<th>No</th>
+<th>Nama</th>
+<th>Bulan</th>
+<th>Jenis</th>
+<th>Keterangan</th>
+<th>Nominal</th>
+</tr>
+</thead>
+<tbody id="tabelKas"></tbody>
+</table>
+
+<h3>Saldo: Rp <span id="saldo">0</span></h3>
+</div>
+
+<script>
+let dataKas = JSON.parse(localStorage.getItem("kas")) || [];
+
+// LOGIN
+function login(){
+  let u = document.getElementById("username").value;
+  let p = document.getElementById("password").value;
+
+  if(u==="admin" && p==="12345"){
+    localStorage.setItem("login","true");
+    tampilApp();
+  }else{
+    document.getElementById("loginMsg").innerText="Username / Password salah";
+  }
+}
+
+// LOGOUT
+function logout(){
+  localStorage.removeItem("login");
+  location.reload();
+}
+
+// TAMPIL APLIKASI
+function tampilApp(){
+  document.getElementById("loginPage").classList.add("hidden");
+  document.getElementById("appPage").classList.remove("hidden");
+  tampilData();
+}
+
+// TAMBAH KAS
+function tambahKas(){
+  let kas = {
+    nama: nama.value,
+    bulan: bulan.value,
+    jenis: jenis.value,
+    ket: ket.value,
+    nominal: parseInt(nominal.value)
   };
-  tambahRiwayatBaru(dataBaru);
-  document.getElementById("kasForm").reset();
-})
-     
-    // Ambil riwayat dari Spreadsheet
-   function loadRiwayat() {
-  fetch(scriptURL + "?action=read")
-    .then(res => res.json())
-    .then(data => {
-      const riwayat = document.getElementById("riwayat");
-      riwayat.innerHTML = "";
-
-      data.reverse().forEach((row, index) => {
-        const item = document.createElement("div");
-        item.className = "accordion-item";
-
-        item.innerHTML = `
-          <h2 class="accordion-header" id="heading${index}">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}" aria-expanded="false" aria-controls="collapse${index}">
-              ${row.nama} - Rp${row.jumlah} (${row.tanggal})
-            </button>
-          </h2>
-          <div id="collapse${index}" class="accordion-collapse collapse" aria-labelledby="heading${index}" data-bs-parent="#riwayat">
-            <div class="accordion-body">
-              <p><strong>Nama:</strong> ${row.nama}</p>
-              <p><strong>Jumlah:</strong> Rp${row.jumlah}</p>
-              <p><strong>Tanggal:</strong> ${row.tanggal}</p>
-              ${row.bukti ? `<p><a href="${row.bukti}" target="_blank" class="btn btn-sm btn-outline-primary">🔗 Lihat Bukti</a></p>` : "<p>Tidak ada bukti.</p>"}
-            </div>
-          </div>
-        `;
-        riwayat.appendChild(item);
-      });
-    });
+  dataKas.push(kas);
+  localStorage.setItem("kas", JSON.stringify(dataKas));
+  tampilData();
 }
-    
-    // Load saat pertama kali
-    loadRiwayat();
-    function tambahRiwayatBaru(data, index = Date.now()) {
-  const riwayat = document.getElementById("riwayat");
-  const item = document.createElement("div");
-  item.className = "accordion-item";
 
-  item.innerHTML = `
-    <h2 class="accordion-header" id="heading${index}">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}" aria-expanded="false" aria-controls="collapse${index}">
-        ${data.nama} - Rp${data.jumlah} (${data.tanggal || new Date().toLocaleDateString()})
-      </button>
-    </h2>
-    <div id="collapse${index}" class="accordion-collapse collapse" aria-labelledby="heading${index}" data-bs-parent="#riwayat">
-      <div class="accordion-body">
-        <p><strong>Nama:</strong> ${data.nama}</p>
-        <p><strong>Jumlah:</strong> Rp${data.jumlah}</p>
-        <p><strong>Tanggal:</strong> ${data.tanggal || new Date().toLocaleDateString()}</p>
-        ${data.bukti ? `<p><a href="${data.bukti}" target="_blank" class="btn btn-sm btn-outline-primary">🔗 Lihat Bukti</a></p>` : "<p>Tidak ada bukti.</p>"}
-      </div>
-    </div>
-  `;
+// TAMPIL DATA
+function tampilData(){
+  let tbody = "";
+  let saldo = 0;
+  dataKas.forEach((k,i)=>{
+    if(k.jenis==="masuk") saldo += k.nominal;
+    else saldo -= k.nominal;
 
-  // Tambahkan di atas (terbaru di urutan pertama)
-  riwayat.prepend(item);
+    tbody += `<tr>
+      <td>${i+1}</td>
+      <td>${k.nama}</td>
+      <td>${k.bulan}</td>
+      <td>${k.jenis}</td>
+      <td>${k.ket}</td>
+      <td>Rp ${k.nominal.toLocaleString()}</td>
+    </tr>`;
+  });
+  document.getElementById("tabelKas").innerHTML = tbody;
+  document.getElementById("saldo").innerText = saldo.toLocaleString();
 }
-  </script>
-  function loadRiwayat() {
-      fetch(scriptURL + "?action=read")
-        .then(res => res.json())
-        .then(data => {
-          const list = document.getElementById("riwayat");
-          list.innerHTML = "";
-          data.reverse().forEach(row => {
-            const li = document.createElement("li");
-            li.className = "list-group-item";
-            li.innerHTML = `
-              <strong>${row.nama}</strong> - Rp${row.jumlah} (${row.tanggal})
-              ${row.bukti ? `<br><a href="${row.bukti}" target="_blank">🔗 Lihat Bukti</a>` : ""}
-            `;
-            list.appendChild(li);
-          });
-        });
-    }
+
+// AUTO LOGIN
+if(localStorage.getItem("login")==="true"){
+  tampilApp();
+}
+</script>
 
 </body>
 </html>
